@@ -1,0 +1,285 @@
+Task 1:
+
+WITH ProjectGroups AS (
+    SELECT Task_ID, Start_Date, End_Date,
+           ROW_NUMBER() OVER (ORDER BY Start_Date) -
+           ROW_NUMBER() OVER (PARTITION BY Task_ID ORDER BY Start_Date) AS ProjectGroup
+    FROM projects
+)
+SELECT COUNT(DISTINCT ProjectGroup) AS TotalProjects
+FROM ProjectGroups;
+SELECT Start_Date, End_Date, DATEDIFF(day, Start_Date, End_Date) AS Completion_Days
+FROM projects
+ORDER BY Completion_Days ASC, Start_Date ASC;
+
+/---------------------------------------------------------------------------
+
+Task 2:
+
+SELECT s.Name
+FROM Students s
+JOIN Friends f ON s.ID = f.ID
+JOIN Packages p ON f.Friend_ID = p.ID
+WHERE p.Salary > (
+    SELECT Salary
+    FROM Packages
+    WHERE ID = s.ID
+)
+ORDER BY p.Salary DESC;
+
+/---------------------------------------------------------------------------
+
+Task 3:
+
+SELECT DISTINCT F1.X, F1.Y
+FROM Functions F1
+JOIN Functions F2 ON F1.X = F2.Y AND F1.Y = F2.X
+WHERE F1.X <= F1.Y
+ORDER BY F1.X;
+
+/---------------------------------------------------------------------------
+
+Task 4:
+
+SELECT 
+    c.contest_id,
+    c.hacker_id,
+    c.name,
+    COALESCE(SUM(s.total_submissions), 0) AS total_submissions,
+    COALESCE(SUM(s.total_accepted_submissions), 0) AS total_accepted_submissions,
+    COALESCE(SUM(v.total_views), 0) AS total_views,
+    COALESCE(SUM(v.total_unique_views), 0) AS total_unique_views
+FROM 
+    Contests c
+LEFT JOIN 
+    Colleges col ON c.contest_id = col.contest_id
+LEFT JOIN 
+    Challenges cha ON col.college_id = cha.college_id
+LEFT JOIN 
+    (SELECT challenge_id, SUM(total_submissions) AS total_submissions, SUM(total_accepted_submissions) AS total_accepted_submissions FROM Submission_Stats GROUP BY challenge_id) s ON cha.challenge_id = s.challenge_id
+LEFT JOIN 
+    (SELECT challenge_id, SUM(total_views) AS total_views, SUM(total_unique_views) AS total_unique_views FROM View_Stats GROUP BY challenge_id) v ON cha.challenge_id = v.challenge_id
+GROUP BY 
+    c.contest_id, c.hacker_id, c.name
+HAVING 
+    NOT (COALESCE(SUM(s.total_submissions), 0) = 0 AND COALESCE(SUM(s.total_accepted_submissions), 0) = 0 AND COALESCE(SUM(v.total_views), 0) = 0 AND COALESCE(SUM(v.total_unique_views), 0) = 0)
+ORDER BY 
+    c.contest_id;
+
+/-----------------------------------------------------------------------------
+
+Task 5:
+
+WITH DailySubmissions AS (
+    SELECT 
+        submission_date,
+        hacker_id,
+        COUNT(*) AS total_submissions
+    FROM 
+        Submissions
+    WHERE 
+        submission_date BETWEEN '2016-03-01' AND '2016-03-15'
+    GROUP BY 
+        submission_date, hacker_id
+),
+DailyUniqueHackers AS (
+    SELECT 
+        submission_date,
+        COUNT(DISTINCT hacker_id) AS unique_hackers
+    FROM 
+        DailySubmissions
+    GROUP BY 
+        submission_date
+),
+MaxSubmissionsPerDay AS (
+    SELECT 
+        ds.submission_date,
+        ds.hacker_id,
+        ds.total_submissions,
+        ROW_NUMBER() OVER (PARTITION BY ds.submission_date ORDER BY ds.total_submissions DESC, ds.hacker_id) AS rn
+    FROM 
+        DailySubmissions ds
+)
+SELECT 
+    ds.submission_date,
+    duh.unique_hackers,
+    mspd.hacker_id,
+    mspd.name,
+    mspd.total_submissions
+FROM 
+    DailyUniqueHackers duh
+JOIN 
+    MaxSubmissionsPerDay mspd ON duh.submission_date = mspd.submission_date AND mspd.rn = 1
+ORDER BY 
+    ds.submission_date;
+
+/-------------------------------------------------------------------------------------------
+
+Task 7:
+
+WITH RECURSIVE NumberList AS (
+    SELECT 2 AS number
+    UNION ALL
+    SELECT number + 1 FROM NumberList WHERE number < 1000
+),
+Primes AS (
+    SELECT a.number
+    FROM NumberList a
+    WHERE NOT EXISTS (
+        SELECT 1 FROM NumberList b WHERE a.number % b.number = 0 AND b.number > 1 AND b.number < a.number
+    )
+)
+SELECT STRING_AGG(CAST(number AS VARCHAR), '&') FROM Primes;
+
+/----------------------------------------------------------------------------------------------
+
+Task 8:
+
+SELECT 
+  MAX(CASE WHEN occupation = 'Doctor' THEN name END) AS Doctor,
+  MAX(CASE WHEN occupation = 'Professor' THEN name END) AS Professor,
+  MAX(CASE WHEN occupation = 'Singer' THEN name END) AS Singer,
+  MAX(CASE WHEN occupation = 'Actor' THEN name END) AS Actor
+FROM (
+  SELECT name, occupation, ROW_NUMBER() OVER (PARTITION BY occupation ORDER BY name) AS rn
+  FROM OCCUPATIONS
+) AS subquery
+GROUP BY rn;
+
+/-----------------------------------------------------------------------------------------------
+
+Task 9:
+
+SELECT 
+  N,
+  CASE
+    WHEN P IS NULL THEN 'Root'
+    WHEN N IN (SELECT P FROM BST) THEN 'Inner'
+    ELSE 'Leaf'
+  END AS NodeType
+FROM BST
+ORDER BY N;
+
+
+/------------------------------------------------------------------------------------------------
+
+Task 11:
+
+SELECT s.Name
+FROM Students s
+JOIN Friends f ON s.ID = f.ID
+JOIN Packages p ON s.ID = p.ID
+JOIN Packages p2 ON f.Friend_ID = p2.ID
+WHERE p.Salary < p2.Salary
+ORDER BY p2.Salary DESC;
+
+/------------------------------------------------------------------------------------------------
+
+Task 12:
+
+SELECT 
+  JobFamily,
+  Country,
+  SUM(Cost) AS TotalCost,
+  SUM(Cost) * 1.0 / SUM(CASE WHEN Country = 'India' THEN Cost END) OVER (PARTITION BY JobFamily) AS Ratio
+FROM 
+  SimulationData
+GROUP BY 
+  JobFamily, 
+  Country;
+
+/------------------------------------------------------------------------------------------------
+
+Task 13:
+
+SELECT 
+  Month,
+  SUM(Cost) AS TotalCost,
+  SUM(Revenue) AS TotalRevenue,
+  CASE 
+    WHEN SUM(Revenue) > 0 THEN SUM(Cost) * 1.0 / SUM(Revenue)
+    ELSE NULL
+  END AS CostRevenueRatio
+FROM 
+  SimulationData
+GROUP BY 
+  Month
+ORDER BY 
+  Month;
+
+/------------------------------------------------------------------------------------------------
+
+Task 14:
+
+SELECT 
+  SubBand,
+  Headcount,
+  Headcount * 100.0 / SUM(Headcount) OVER () AS Percentage
+FROM 
+  SimulationData;
+
+/------------------------------------------------------------------------------------------------
+
+Task 15:
+
+SELECT TOP 5 Salary
+FROM Employees
+WHERE Salary > (
+    SELECT COUNT(DISTINCT Salary)
+    FROM Employees AS SubEmployees
+    WHERE SubEmployees.Salary > Employees.Salary
+);
+
+/------------------------------------------------------------------------------------------------
+
+Task 16:
+
+UPDATE YourTableName
+SET Column1 = Column2,
+    Column2 = Column1;
+
+/------------------------------------------------------------------------------------------------
+
+Task 17:
+
+CREATE LOGIN [YourLoginName] WITH PASSWORD = 'YourPassword';
+
+USE YourDatabaseName;
+CREATE USER [YourLoginName] FOR LOGIN [YourLoginName];
+
+EXEC sp_addrolemember 'db_owner', 'YourLoginName';
+
+/------------------------------------------------------------------------------------------------
+
+Task 18:
+
+SELECT 
+  Month,
+  SUM(Cost * Weight) / SUM(Weight) AS WeightedAverageCost
+FROM 
+  EmployeeCosts
+GROUP BY 
+  Month;
+
+/-----------------------------------------------------------------------------------------------
+
+Task 19:
+
+SELECT CEIL(AVG(CAST(Salary AS FLOAT)) - AVG(CAST(REPLACE(Salary, '0', '') AS FLOAT))) AS Error
+FROM EMPLOYEES;
+
+/-----------------------------------------------------------------------------------------------
+
+Task 20:
+
+INSERT INTO NewTable (Column1, Column2, Column3)
+SELECT Column1, Column2, Column3
+FROM OldTable
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM NewTable
+    WHERE NewTable.Column1 = OldTable.Column1
+);
+
+
+
