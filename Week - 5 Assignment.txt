@@ -1,0 +1,16 @@
+CREATE PROCEDURE InsertRequestedSubject
+    @studentId INT,
+    @subjectId INT
+AS
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM StudentAllotments WHERE Studentid = @studentId)
+    BEGIN
+        INSERT INTO StudentAllotments (Studentid, Subjectid, is_valid)
+        VALUES (@studentId, @subjectId, 1);
+        PRINT 'Subject inserted successfully!';
+    END
+    ELSE
+    BEGIN
+        PRINT 'Student already has an allotment.';
+    END
+END
